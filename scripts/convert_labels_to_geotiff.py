@@ -7,7 +7,8 @@ from rasterio.features import rasterize
 from pyproj import CRS
 import matplotlib.pyplot as plt
 
-def create_geotiff_from_geojson(geojson_path, output_tiff_path):
+
+def create_geotiff_from_geojson(geojson_path, reference_tiff_path, output_tiff_path):
     # Load GeoJSON data
     with open(geojson_path) as f:
         geojson_data = json.load(f)
@@ -23,8 +24,15 @@ def create_geotiff_from_geojson(geojson_path, output_tiff_path):
     if gdf.crs is None:
         gdf.set_crs(epsg=4326, inplace=True)  # WGS84
 
-    # Reproject to UTM (meters)
-    gdf = gdf.to_crs(epsg=32633)  # UTM zone 33N, WGS84
+    # Open the reference GeoTIFF file to get its transform and dimensions
+    with rasterio.open(reference_tiff_path) as ref_tiff:
+        transform = ref_tiff.transform
+        width = ref_tiff.width
+        height = ref_tiff.height
+        crs = ref_tiff.crs
+
+    # Reproject the GeoDataFrame to match the reference GeoTIFF's CRS
+    gdf = gdf.to_crs(crs)
 
     # Get unique classes from the GeoDataFrame
     classes = gdf['default'].unique()
@@ -33,27 +41,6 @@ def create_geotiff_from_geojson(geojson_path, output_tiff_path):
     print("Classes and their respective layers:")
     for cls in classes:
         print(f"Class: {cls}")
-
-    # Determine the bounding box of all geometries in the GeoJSON
-    bounds = gdf.total_bounds  # returns (minx, miny, maxx, maxy)
-    print(f"Bounding box: {bounds}")
-
-    # Define the resolution
-    resolution = 20  # 20 meters per pixel
-
-    # Calculate the dimensions of the output image
-    width = int((bounds[2] - bounds[0]) / resolution)
-    height = int((bounds[3] - bounds[1]) / resolution)
-    
-    # Ensure width and height are greater than 0
-    if width <= 0 or height <= 0:
-        raise ValueError("Calculated width and height must be greater than 0. Check the bounds and resolution.")
-
-    # Calculate the transform for the output image
-    transform = from_origin(bounds[0], bounds[3], resolution, resolution)
-
-    # Define the CRS using pyproj
-    crs = CRS.from_epsg(32633)  # UTM zone 33N, WGS84
 
     # Create an empty array for each class
     layers = {cls: np.zeros((height, width), dtype=np.uint8) for cls in classes}
@@ -89,6 +76,9 @@ def create_geotiff_from_geojson(geojson_path, output_tiff_path):
 # Paths
 geojson_path = '../data/labels.geojson'
 output_tiff_path = '../data/labeled_layers.tif'
+reference_tiff_path = '../data/crop_T36TWS_20230605T083601_TCI_20m.tif'  # Reference GeoTIFF file path
 
-create_geotiff_from_geojson(geojson_path, output_tiff_path)
+
+create_geotiff_from_geojson(geojson_path, reference_tiff_path, output_tiff_path)
+
 
