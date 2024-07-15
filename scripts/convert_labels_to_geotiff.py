@@ -88,7 +88,7 @@ def create_geotiff_from_geojson(geojson_path, output_tiff_path):
 
 # Paths
 geojson_path = '../data/labels.geojson'
-output_tiff_path = '../data/output_layers.tif'
+output_tiff_path = '../data/labeled_layers.tif'
 
 create_geotiff_from_geojson(geojson_path, output_tiff_path)
 
